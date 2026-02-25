@@ -1,0 +1,45 @@
+name: Build Actions SDK Plugin
+
+on:
+  push:
+    paths:
+      - 'plugins/cursorpilot-actions-plugin/**'
+  pull_request:
+    paths:
+      - 'plugins/cursorpilot-actions-plugin/**'
+  workflow_dispatch:
+
+jobs:
+  build-plugin:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: plugins/cursorpilot-actions-plugin
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build -c Release --no-restore
+
+      - name: Publish
+        run: dotnet publish -c Release -o ./publish --no-build
+
+      - name: Create plugin archive
+        run: Compress-Archive -Path ./publish/* -DestinationPath cursorpilot-actions-plugin.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cursorpilot-actions-plugin
+          path: plugins/cursorpilot-actions-plugin/cursorpilot-actions-plugin.zip
+          retention-days: 30

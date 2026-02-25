@@ -1,0 +1,95 @@
+graph TB
+    subgraph Hardware["🎛️ Hardware Layer"]
+        DIAL["Logitech Dial<br/>Rotate → Mode Change"]
+        BTN_A["Button A<br/>Press → Execute Fix"]
+        BTN_B["Button B<br/>Press → Explain Issue"]
+    end
+
+    subgraph Plugin["🔌 Actions Plugin (C# / .NET 8)"]
+        CSHARP["CursorPilot Actions Plugin<br/>Logitech Actions SDK"]
+    end
+
+    subgraph Bridge["🌉 Bridge HTTP Server (:8787)"]
+        FIX_EP["POST /api/fix<br/>Trigger repair pipeline"]
+        EXP_EP["POST /api/explain<br/>Trigger explanation"]
+        MODE_EP["POST /api/mode<br/>Set repair mode"]
+        RESET_EP["POST /api/reset<br/>Reset demo repo"]
+        EVD_EP["GET /api/evidence<br/>Read current state"]
+    end
+
+    subgraph Engine["⚙️ Engine Package (@cursorpilot/engine)"]
+        direction LR
+        STEP1["1. Run Tests<br/>npm test → failures"]
+        STEP2["2. Run Lint<br/>npm run lint → errors"]
+        STEP3["3. Collect Files<br/>src/ context bundle"]
+        STEP4["4. Call Gemini<br/>gemini-2.0-flash → diff"]
+        STEP5["5. Validate Diff<br/>Format + header check"]
+        STEP6["6. Apply Patch<br/>git apply -C0"]
+        STEP7["7. Verify<br/>Re-run tests + lint"]
+    end
+
+    subgraph Modes["🎚️ Repair Modes"]
+        SAFE["SAFE<br/>Minimal changes"]
+        PERF["PERF<br/>Performance focus"]
+        SEC["SEC<br/>Security hardening"]
+        REFACTOR["REFACTOR<br/>Code quality"]
+    end
+
+    subgraph Electron["🖥️ Electron Desktop App"]
+        MAIN["Main Process<br/>IPC + Bridge startup"]
+        VCON["Virtual Console<br/>Software dial + buttons"]
+        DIFF_VIEW["Diff Viewer<br/>Shows unified diff"]
+        TEST_PANEL["Test Panel<br/>Test + lint output"]
+        MD_PANEL["Explanation Panel<br/>Gemini Markdown output"]
+        BADGE["Mode Badge<br/>Current mode indicator"]
+    end
+
+    subgraph DemoRepo["📁 Demo Repository"]
+        SRC_JS["src/*.js<br/>Intentionally broken files"]
+        JEST["__tests__/<br/>Jest test suite"]
+    end
+
+    DIAL -->|"rotate event"| CSHARP
+    BTN_A -->|"press event"| CSHARP
+    BTN_B -->|"press event"| CSHARP
+    CSHARP -->|"HTTP POST + X-CursorPilot-Token"| FIX_EP
+    CSHARP -->|"HTTP POST + X-CursorPilot-Token"| EXP_EP
+    CSHARP -->|"HTTP POST + X-CursorPilot-Token"| MODE_EP
+    CSHARP -->|"HTTP POST + X-CursorPilot-Token"| RESET_EP
+
+    VCON -->|"window.api.dispatch()"| MAIN
+    MAIN -->|"starts on app launch"| Bridge
+    MAIN -->|"IPC call"| Engine
+
+    FIX_EP --> Engine
+    EXP_EP --> STEP1
+    MODE_EP --> Modes
+
+    STEP1 --> STEP2 --> STEP3 --> STEP4 --> STEP5 --> STEP6 --> STEP7
+
+    STEP1 -.->|"reads test output"| DemoRepo
+    STEP2 -.->|"reads lint output"| DemoRepo
+    STEP3 -.->|"reads src/ files"| DemoRepo
+    STEP6 -.->|"writes patched files"| DemoRepo
+    STEP7 -.->|"re-runs against"| DemoRepo
+
+    Modes -->|"mode in system prompt"| STEP4
+
+    Engine -->|"EvidenceState via IPC"| MAIN
+    MAIN --> DIFF_VIEW
+    MAIN --> TEST_PANEL
+    MAIN --> MD_PANEL
+    MAIN --> BADGE
+    EVD_EP -.->|"reads"| Engine
+
+    style Hardware fill:#1a1a2e,stroke:#16213e,color:#e2e8f0
+    style Plugin fill:#0f3460,stroke:#16213e,color:#e2e8f0
+    style Bridge fill:#533483,stroke:#16213e,color:#e2e8f0
+    style Engine fill:#0f3460,stroke:#16213e,color:#e2e8f0
+    style Modes fill:#1a1a2e,stroke:#16213e,color:#e2e8f0
+    style Electron fill:#1a1a2e,stroke:#16213e,color:#e2e8f0
+    style DemoRepo fill:#533483,stroke:#16213e,color:#e2e8f0
+    style STEP4 fill:#e94560,stroke:#e94560,color:#fff
+    style STEP7 fill:#e94560,stroke:#e94560,color:#fff
+    style FIX_EP fill:#e94560,stroke:#e94560,color:#fff
+    style CSHARP fill:#e94560,stroke:#e94560,color:#fff

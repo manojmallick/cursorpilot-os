@@ -1,0 +1,15 @@
+{
+    "env": {
+        "node": true,
+        "es2021": true,
+        "jest": true
+    },
+    "parserOptions": {
+        "ecmaVersion": "latest"
+    },
+    "rules": {
+        "no-unused-vars": "error",
+        "eqeqeq": "error",
+        "no-var": "error"
+    }
+}

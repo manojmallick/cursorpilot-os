@@ -1,0 +1,13 @@
+{
+    "name": "demo-repo",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "test": "jest --no-cache",
+        "lint": "eslint src/"
+    },
+    "devDependencies": {
+        "jest": "^29.7.0",
+        "eslint": "^8.56.0"
+    }
+}

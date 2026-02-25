@@ -1,0 +1,22 @@
+{
+    "name": "@cursorpilot/engine",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "scripts": {
+        "typecheck": "tsc --noEmit",
+        "build": "tsc"
+    },
+    "dependencies": {
+        "@cursorpilot/shared": "*",
+        "@google/generative-ai": "^0.21.0",
+        "dotenv": "^16.4.0",
+        "simple-git": "^3.24.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "typescript": "^5.4.0"
+    }
+}

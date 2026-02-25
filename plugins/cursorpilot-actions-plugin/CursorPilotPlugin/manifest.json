@@ -1,0 +1,29 @@
+{
+    "name": "CursorPilot OS",
+    "version": "1.0.0",
+    "description": "AI-powered code fix workflow controlled by Logitech hardware actions",
+    "author": "CursorPilot Team",
+    "actions": [
+        {
+            "id": "cursorpilot.fix",
+            "name": "Fix & Verify",
+            "type": "command",
+            "description": "Run AI patch pipeline: detect failures, generate fix, validate, apply, and verify",
+            "icon": "Assets/fix-icon.png"
+        },
+        {
+            "id": "cursorpilot.explain",
+            "name": "Explain Issue",
+            "type": "command",
+            "description": "Ask AI to explain the current test/lint failures",
+            "icon": "Assets/explain-icon.png"
+        },
+        {
+            "id": "cursorpilot.mode",
+            "name": "Mode Selector",
+            "type": "adjustment",
+            "description": "Rotate to cycle modes: Safe, Performance, Security, Refactor",
+            "icon": "Assets/mode-icon.png"
+        }
+    ]
+}
