@@ -86,26 +86,42 @@ jobs:
           while (-not (Test-Path $apiDll) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 10 }
           Write-Host "PluginApi.dll present: $(Test-Path $apiDll)"
 
-          # logiplugintool is not on PATH after install — find it and add its folder.
-          $tool = Get-ChildItem "C:\Program Files\Logi" -Recurse -Filter "logiplugintool*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($tool) {
-            Add-Content -Path $env:GITHUB_PATH -Value (Split-Path $tool.FullName)
-            Write-Host "Found logiplugintool: $($tool.FullName)"
-          } else {
-            Write-Host "::warning::logiplugintool.exe not found under C:\Program Files\Logi after install."
-          }
-
-      - name: Detect Logi Actions SDK
+      - name: Resolve Logi plugin tool
         id: sdk
         shell: pwsh
         run: |
           $apiDll = "C:\Program Files\Logi\LogiPluginService\PluginApi.dll"
-          $tool   = Get-Command logiplugintool -ErrorAction SilentlyContinue
           $hasApi = Test-Path $apiDll
-          $hasTool = $null -ne $tool
+
+          $roots = @(
+            "C:\Program Files\Logi", "C:\Program Files (x86)\Logi",
+            "$env:ProgramData\Logi", "$env:LOCALAPPDATA\Logi", "$env:LOCALAPPDATA\Programs"
+          ) | Where-Object { Test-Path $_ }
+
+          # Diagnostics: show every plugin-tool-ish file the installer placed.
+          Write-Host "── plugintool candidates ──"
+          Get-ChildItem $roots -Recurse -ErrorAction SilentlyContinue -Include "*lugin*ool*.exe","*lugin*ool*.dll" |
+            ForEach-Object { Write-Host "  $($_.FullName)" }
+
+          # Prefer the managed DLL (run via `dotnet <dll>`). Fall back to an .exe apphost
+          # only if its sibling .dll exists (otherwise it's a broken launcher).
+          $kind = ""; $path = ""
+          $dll = Get-ChildItem $roots -Recurse -ErrorAction SilentlyContinue -Include "LogiPluginTool.dll","logiplugintool.dll" | Select-Object -First 1
+          if ($dll) {
+            $kind = "dll"; $path = $dll.FullName
+          } else {
+            $exe = Get-ChildItem $roots -Recurse -ErrorAction SilentlyContinue -Include "logiplugintool.exe","LogiPluginTool.exe" |
+              Where-Object { Test-Path (Join-Path $_.DirectoryName ($_.BaseName + ".dll")) } | Select-Object -First 1
+            if ($exe) { $kind = "exe"; $path = $exe.FullName }
+          }
+
+          $hasTool = $kind -ne ""
+          "LOGI_TOOL_KIND=$kind" >> $env:GITHUB_ENV
+          "LOGI_TOOL_PATH=$path" >> $env:GITHUB_ENV
           "has_sdk=$([string]($hasApi -and $hasTool).ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          Write-Host "Resolved tool: kind=$kind path=$path (PluginApi.dll: $hasApi)"
           if (-not ($hasApi -and $hasTool)) {
-            Write-Host "::warning::Logi Actions SDK not available (PluginApi.dll: $hasApi, logiplugintool: $hasTool). The auto-install may have failed; see BUILDING.md for a self-hosted/local fallback."
+            Write-Host "::warning::Logi Actions SDK not fully available (PluginApi.dll: $hasApi, tool: $hasTool). See the candidates above and BUILDING.md."
           }
 
       # A release tag must produce a binary. If the SDK is missing on a tag build,
@@ -127,8 +143,17 @@ jobs:
         run: |
           $version = (Select-String -Path "CursorPilotPlugin/package/metadata/LoupedeckPackage.yaml" -Pattern '^version:\s*(.+)$').Matches.Groups[1].Value.Trim()
           $out = "CursorPilot_$($version -replace '\.','_').lplug4"
-          logiplugintool pack ./bin/Release/ ./$out
-          logiplugintool verify ./$out
+
+          function Invoke-Tool {
+            param([string[]]$ToolArgs)
+            if ($env:LOGI_TOOL_KIND -eq 'dll') { & dotnet $env:LOGI_TOOL_PATH @ToolArgs }
+            else { & $env:LOGI_TOOL_PATH @ToolArgs }
+            if ($LASTEXITCODE -ne 0) { throw "tool exited with code $LASTEXITCODE" }
+          }
+
+          Invoke-Tool @("pack", "./bin/Release/", "./$out")
+          Invoke-Tool @("verify", "./$out")
+          if (-not (Test-Path "./$out")) { throw "Expected $out was not produced" }
           Write-Host "Built $out"
 
       - name: Upload .lplug4 artifact
