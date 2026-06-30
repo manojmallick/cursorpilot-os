@@ -5,11 +5,36 @@ The Marketplace upload box accepts a **`.lplug4`**. Producing one requires
 both of which ship inside **LogiPluginService** (installed by Logi Options+). They are
 **not redistributable**, so they can't be committed or vendored into a stock CI runner.
 
-You're on macOS, so pick one of the three paths below.
+You're on macOS, so pick one of the paths below. **Option 0 (hosted CI) is the default
+and needs no Windows machine of your own.**
 
 ---
 
-## Option A — Local Windows machine (simplest, recommended first)
+## Option 0 — Hosted GitHub runner, auto-install (default, no setup)
+
+The `package` job in `.github/workflows/build-plugin.yml` installs Logi Options+ on the
+hosted `windows-latest` runner using Logitech's documented silent installer
+(`logioptionsplus_installer.exe /quiet`). That places `PluginApi.dll` + `logiplugintool`
+on disk — all the build and pack need (no GUI or device required). So a release is fully
+hands-off:
+
+```bash
+git tag plugin-v1.0.1 && git push origin plugin-v1.0.1
+```
+
+→ CI installs the SDK, builds, packs, `verify`s, and attaches `CursorPilot_1_0.lplug4` to
+the `plugin-v1.0.1` release.
+
+Notes:
+- The install adds ~2–4 min per release build. Set repo variable `INSTALL_LOGI_SDK=false`
+  to disable it (e.g. when using a self-hosted runner that already has the SDK).
+- Installing Logitech's installer in CI is unofficial-for-CI but only uses files you're
+  licensed to use to build your own plugin. If a runner image change ever breaks it, fall
+  back to Option A/B/C below.
+
+---
+
+## Option A — Local Windows machine (most reliable)
 
 Use any Windows 10/11 box (physical, Boot Camp, Parallels, or a VM).
 

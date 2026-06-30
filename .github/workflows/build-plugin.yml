@@ -61,6 +61,40 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      # Install Logi Options+ on the (hosted) runner via the documented silent
+      # installer. It provides PluginApi.dll + logiplugintool, which is all the build
+      # and pack need — no GUI or physical device required. Skipped automatically if
+      # the SDK is already present (e.g. a self-hosted runner via PLUGIN_RUNNER), or
+      # if the INSTALL_LOGI_SDK repo variable is set to 'false'.
+      - name: Install Logi Actions SDK (Logi Options+)
+        if: vars.INSTALL_LOGI_SDK != 'false'
+        shell: pwsh
+        run: |
+          $apiDll = "C:\Program Files\Logi\LogiPluginService\PluginApi.dll"
+          if (Test-Path $apiDll) { Write-Host "SDK already present; skipping install."; exit 0 }
+
+          $url = "https://download01.logi.com/web/ftp/pub/techsupport/optionsplus/logioptionsplus_installer.exe"
+          $exe = Join-Path $env:RUNNER_TEMP "logioptionsplus_installer.exe"
+          Write-Host "Downloading Logi Options+ installer..."
+          Invoke-WebRequest -Uri $url -OutFile $exe -UseBasicParsing
+
+          Write-Host "Running silent install..."
+          Start-Process -FilePath $exe -ArgumentList "/quiet","/update","no","/analytics","no","/sso","no" -Wait
+
+          # The launcher may return before files are fully placed; wait for PluginApi.dll.
+          $deadline = (Get-Date).AddMinutes(8)
+          while (-not (Test-Path $apiDll) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 10 }
+          Write-Host "PluginApi.dll present: $(Test-Path $apiDll)"
+
+          # logiplugintool is not on PATH after install — find it and add its folder.
+          $tool = Get-ChildItem "C:\Program Files\Logi" -Recurse -Filter "logiplugintool*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($tool) {
+            Add-Content -Path $env:GITHUB_PATH -Value (Split-Path $tool.FullName)
+            Write-Host "Found logiplugintool: $($tool.FullName)"
+          } else {
+            Write-Host "::warning::logiplugintool.exe not found under C:\Program Files\Logi after install."
+          }
+
       - name: Detect Logi Actions SDK
         id: sdk
         shell: pwsh
@@ -71,7 +105,7 @@ jobs:
           $hasTool = $null -ne $tool
           "has_sdk=$([string]($hasApi -and $hasTool).ToString().ToLower())" >> $env:GITHUB_OUTPUT
           if (-not ($hasApi -and $hasTool)) {
-            Write-Host "::warning::Logi Actions SDK not found on this runner (PluginApi.dll present: $hasApi, logiplugintool present: $hasTool). Skipping build + .lplug4 packaging. Set the PLUGIN_RUNNER repo variable to a self-hosted runner with Logi Options+ installed — see plugins/cursorpilot-actions-plugin/BUILDING.md."
+            Write-Host "::warning::Logi Actions SDK not available (PluginApi.dll: $hasApi, logiplugintool: $hasTool). The auto-install may have failed; see BUILDING.md for a self-hosted/local fallback."
           }
 
       # A release tag must produce a binary. If the SDK is missing on a tag build,
