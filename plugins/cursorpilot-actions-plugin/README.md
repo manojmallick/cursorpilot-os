@@ -38,7 +38,7 @@ cursorpilot-actions-plugin/
     └── package/
         └── metadata/
             ├── LoupedeckPackage.yaml  # plugin manifest (Marketplace requirement)
-            └── Icon256x256.png        # plugin icon (replace with final art)
+            └── Icon256x256.png        # branded plugin icon (swap for custom art if desired)
 ```
 
 > The Marketplace reads `LoupedeckPackage.yaml`, **not** a `manifest.json` — the SDK uses the

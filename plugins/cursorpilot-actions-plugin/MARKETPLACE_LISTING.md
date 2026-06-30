@@ -88,7 +88,7 @@ captures with no personal data on screen.
 
 ### Required / strongly recommended
 
-- [ ] **Plugin icon** — 256×256 PNG (already in `package/metadata/`; replace the placeholder with final art).
+- [x] **Plugin icon** — 256×256 PNG branded icon in `package/metadata/` (swap for custom art only if you want a designer version).
 - [ ] **Hero shot** — the physical MX Creative Console / Loupedeck with CursorPilot actions assigned to buttons + dial. (If no hardware, use the Virtual Console from the desktop app.)
 - [ ] **Actions in Logi Options+** — screenshot of the three actions (Fix & Verify, Explain Issue, Mode Selector) listed under the CursorPilot group, ready to drag onto controls.
 
@@ -148,7 +148,7 @@ dark theme, no real keys on screen. Target ~20s, loopable.
 
 - [ ] `.lplug4` built on a machine with LogiPluginService and **`logiplugintool verify` passes**.
 - [ ] Tested on at least one supported device (or documented as Virtual-Console-tested).
-- [ ] Final icon replaces the placeholder.
+- [x] Branded plugin icon in place (swap for custom art only if desired).
 - [ ] Marketplace Developer Agreement accepted; EULA attached.
 - [ ] All external links resolve publicly.
 - [ ] `version` in `LoupedeckPackage.yaml` matches the version in this listing.
