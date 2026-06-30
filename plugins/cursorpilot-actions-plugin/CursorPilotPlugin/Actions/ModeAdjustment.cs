@@ -1,46 +1,62 @@
-// ModeAdjustment — Maps to the Dial/Ring on the Logitech device.
-// Rotations cycle through modes: SAFE → PERF → SEC → REFACTOR.
+// ModeAdjustment — an Adjustment the user assigns to the dial/ring on the Logitech device.
+// Rotations cycle through repair modes: SAFE -> PERF -> SEC -> REFACTOR.
 
-namespace CursorPilotPlugin.Actions;
-
-using CursorPilotPlugin.Bridge;
-
-/// <summary>
-/// Adjustment action: "Mode Selector"
-/// When the user rotates the dial/ring on the Logitech device,
-/// this adjustment cycles through CursorPilot modes via /api/mode.
-/// </summary>
-public class ModeAdjustment
+namespace Loupedeck.CursorPilotPlugin
 {
-    private static readonly string[] Modes = { "SAFE", "PERF", "SEC", "REFACTOR" };
-    private int _currentIndex = 0;
-    private readonly LocalhostBridgeClient _bridge;
-
-    public ModeAdjustment()
-    {
-        _bridge = new LocalhostBridgeClient();
-    }
+    using System;
 
     /// <summary>
-    /// Called by the Actions SDK when the dial/ring is rotated.
+    /// Adjustment action "Mode Selector". Rotating the dial cycles through CursorPilot
+    /// repair modes and pushes the active mode to <c>POST /api/mode</c> over the bridge.
+    /// The current mode is shown next to the dial.
     /// </summary>
-    /// <param name="ticks">Number of rotation ticks (positive = clockwise)</param>
-    public async Task AdjustAsync(int ticks)
+    public class ModeAdjustment : PluginDynamicAdjustment
     {
-        // Cycle through modes based on rotation direction
-        _currentIndex = ((_currentIndex + ticks) % Modes.Length + Modes.Length) % Modes.Length;
-        var newMode = Modes[_currentIndex];
+        private static readonly String[] Modes = { "SAFE", "PERF", "SEC", "REFACTOR" };
+        private Int32 _currentIndex = 0;
+        private readonly LocalhostBridgeClient _bridge = new LocalhostBridgeClient();
 
-        Console.WriteLine("[CursorPilot] Mode adjustment: " + newMode);
-
-        try
+        public ModeAdjustment()
+            : base(displayName: "Mode Selector",
+                   description: "Rotate to cycle modes: Safe, Performance, Security, Refactor",
+                   groupName: "CursorPilot",
+                   hasReset: true)
         {
-            var result = await _bridge.SetModeAsync(newMode);
-            Console.WriteLine("[CursorPilot] Mode set to: " + newMode);
         }
-        catch (Exception ex)
+
+        protected override void ApplyAdjustment(String actionParameter, Int32 diff)
         {
-            Console.WriteLine("[CursorPilot] Mode adjustment failed: " + ex.Message);
+            // Wrap the index in both directions.
+            this._currentIndex = (((this._currentIndex + diff) % Modes.Length) + Modes.Length) % Modes.Length;
+            this.PushMode();
+        }
+
+        // Reset returns to the first (SAFE) mode.
+        protected override void RunCommand(String actionParameter)
+        {
+            this._currentIndex = 0;
+            this.PushMode();
+        }
+
+        protected override String GetAdjustmentValue(String actionParameter) => Modes[this._currentIndex];
+
+        private void PushMode()
+        {
+            var mode = Modes[this._currentIndex];
+            this.AdjustmentValueChanged();
+            PluginLog.Info("Mode adjustment: " + mode);
+
+            _ = _bridge.SetModeAsync(mode).ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                {
+                    PluginLog.Error(t.Exception, "Mode adjustment failed");
+                }
+                else
+                {
+                    PluginLog.Info("Mode set to: " + mode);
+                }
+            });
         }
     }
 }

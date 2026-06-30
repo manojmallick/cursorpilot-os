@@ -411,9 +411,9 @@ cursorpilot-os/
 ├── plugins/
 │   └── cursorpilot-actions-plugin/ # C#/.NET 8 Logitech Actions SDK plugin
 │       └── CursorPilotPlugin/
-│           ├── Plugin.cs           # Plugin entry point
-│           ├── manifest.json       # Action definitions (fix, explain, mode, reset)
-│           ├── Actions/            # Per-action C# handlers
+│           ├── CursorPilotPlugin.cs # Plugin entry point (Loupedeck.Plugin)
+│           ├── package/metadata/   # LoupedeckPackage.yaml + icon (Marketplace)
+│           ├── Actions/            # Per-action C# handlers (Command/Adjustment)
 │           └── Bridge/             # HTTP client calling :8787
 │
 ├── demo-repo/                      # Target repo (intentionally broken)

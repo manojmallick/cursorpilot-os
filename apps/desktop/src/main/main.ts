@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { join, resolve } from 'path';
-import { dispatch, getEvidence, resetDemo, startBridgeServer, setBridgeRepoPath } from '@cursorpilot/engine';
-import type { ActionEvent } from '@cursorpilot/shared';
+import { dispatch, getEvidence, resetDemo, startBridgeServer, setBridgeRepoPath, getLlmSettings, setLlmSettings } from '@cursorpilot/engine';
+import type { ActionEvent, LlmSettingsInput } from '@cursorpilot/shared';
 import { IPC } from '@cursorpilot/shared';
 
 // The demo-repo path relative to the project root
@@ -48,6 +48,14 @@ ipcMain.handle(IPC.GET_EVIDENCE, async () => {
 
 ipcMain.handle(IPC.RESET, async () => {
     return resetDemo(DEMO_REPO_PATH);
+});
+
+ipcMain.handle(IPC.GET_SETTINGS, async () => {
+    return getLlmSettings();
+});
+
+ipcMain.handle(IPC.SET_SETTINGS, async (_event, input: LlmSettingsInput) => {
+    return setLlmSettings(input);
 });
 
 // ── App lifecycle ──────────────────────────────────────

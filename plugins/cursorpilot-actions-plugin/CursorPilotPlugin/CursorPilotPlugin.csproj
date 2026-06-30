@@ -3,18 +3,56 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <RootNamespace>CursorPilotPlugin</RootNamespace>
+    <Nullable>disable</Nullable>
+    <RootNamespace>Loupedeck.CursorPilotPlugin</RootNamespace>
     <AssemblyName>CursorPilotPlugin</AssemblyName>
     <OutputType>Library</OutputType>
+
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
+    <!--
+      PluginApi.dll ships with LogiPluginService (installed by Logi Options+).
+      It is not redistributable, so it is referenced from the local install and
+      is NOT committed to this repo. Building therefore requires LogiPluginService
+      to be installed on the build machine (a Windows dev box or self-hosted runner).
+    -->
+    <PluginApiDir Condition="$(OS) == 'Windows_NT'">C:\Program Files\Logi\LogiPluginService\</PluginApiDir>
+    <PluginApiDir Condition="$(OS) != 'Windows_NT'">/Applications/Utilities/LogiPluginService.app/Contents/MonoBundle/</PluginApiDir>
+
+    <PluginDir Condition="$(OS) == 'Windows_NT'">$(LocalAppData)\Logi\LogiPluginService\Plugins\</PluginDir>
+    <PluginDir Condition="$(OS) != 'Windows_NT'">~/Library/Application\ Support/Logi/LogiPluginService/Plugins/</PluginDir>
+
+    <OutputPath>$(BaseOutputPath)$(Configuration)\bin\</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 
-      Logitech Actions SDK NuGet package.
-      Replace with real package reference when available:
-      <PackageReference Include="Logi.Actions.SDK" Version="1.*" />
-    -->
+    <Reference Include="PluginApi">
+      <HintPath>$(PluginApiDir)PluginApi.dll</HintPath>
+    </Reference>
   </ItemGroup>
+
+  <!-- Copy the package metadata (LoupedeckPackage.yaml, icon, icon templates) next to bin/ -->
+  <Target Name="CopyPackage" AfterTargets="PostBuildEvent">
+    <ItemGroup>
+      <PackageFiles Include="package\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(OutputPath)..\%(RecursiveDir)" />
+  </Target>
+
+  <!-- During local development, link the build output into LogiPluginService so it hot-reloads. -->
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Condition="$(OS) == 'Windows_NT'" Command="echo $(BaseOutputPath)$(Configuration)\ &gt; &quot;$(PluginDir)$(ProjectName).link&quot;&#xD;&#xA;start loupedeck:plugin/CursorPilot/reload" />
+    <Exec Condition="$(OS) != 'Windows_NT'" Command="echo $(BaseOutputPath)$(Configuration)\ &gt; $(PluginDir)$(ProjectName).link" />
+  </Target>
+
+  <Target Name="PluginClean" AfterTargets="CoreClean">
+    <Delete Condition="$(OS) == 'Windows_NT'" Files="$(PluginDir)$(ProjectName).link" />
+    <Exec Condition="$(OS) != 'Windows_NT'" Command="rm -f $(PluginDir)$(ProjectName).link" />
+    <RemoveDir Directories="$(OutputPath)..\" />
+  </Target>
 
 </Project>

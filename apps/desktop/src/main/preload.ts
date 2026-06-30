@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { ActionEvent, EvidenceState } from '@cursorpilot/shared';
+import type { ActionEvent, EvidenceState, LlmSettings, LlmSettingsInput } from '@cursorpilot/shared';
 import { IPC } from '@cursorpilot/shared';
 
 /**
@@ -15,4 +15,10 @@ contextBridge.exposeInMainWorld('api', {
 
     reset: (): Promise<EvidenceState> =>
         ipcRenderer.invoke(IPC.RESET),
+
+    getSettings: (): Promise<LlmSettings> =>
+        ipcRenderer.invoke(IPC.GET_SETTINGS),
+
+    setSettings: (input: LlmSettingsInput): Promise<LlmSettings> =>
+        ipcRenderer.invoke(IPC.SET_SETTINGS, input),
 });

@@ -57,9 +57,29 @@ export const INITIAL_EVIDENCE: EvidenceState = {
     updatedAt: Date.now(),
 };
 
+// ── LLM settings (user-supplied Gemini key + model) ────
+export type KeySource = 'user' | 'env' | 'none';
+
+/** Effective LLM settings shown to the UI. Never includes the raw key — only a mask. */
+export interface LlmSettings {
+    model: string;
+    availableModels: string[];
+    hasKey: boolean;
+    keySource: KeySource;
+    keyMask: string;
+}
+
+/** Changes requested by the UI. Empty apiKey clears the user key (falls back to env). */
+export interface LlmSettingsInput {
+    apiKey?: string;
+    model?: string;
+}
+
 // ── IPC channel names ──────────────────────────────────
 export const IPC = {
     DISPATCH: 'engine:dispatch',
     GET_EVIDENCE: 'engine:getEvidence',
     RESET: 'engine:resetRepo',
+    GET_SETTINGS: 'engine:getSettings',
+    SET_SETTINGS: 'engine:setSettings',
 } as const;

@@ -1,0 +1,15 @@
+# Build output
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+
+# Packaged plugin artifacts
+*.lplug4
+
+# Vendored SDK assembly (ships with LogiPluginService, not redistributable)
+PluginApi.dll
+
+# Visual Studio
+.vs/
+*.user

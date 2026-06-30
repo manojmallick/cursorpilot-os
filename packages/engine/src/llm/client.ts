@@ -1,9 +1,10 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
 import { GEMINI_INSTRUCTION, buildUserPrompt } from './prompts.js';
 import type { CollectedFile } from '../git/fileCollector.js';
 import dotenv from 'dotenv';
 import { resolve, join } from 'path';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { homedir } from 'os';
 
 // Search upward from CWD to find the .env file at the monorepo root
 function findEnvFile(): string | undefined {
@@ -25,13 +26,125 @@ if (envPath) {
     dotenv.config();
 }
 
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-    console.warn('GEMINI_API_KEY not set — LLM calls will fail');
+// ── User settings (Gemini key + model) ─────────────────────────────────────
+// A user can supply their own Gemini API key and pick a model from the desktop
+// app. Choices are persisted to ~/.cursorpilot/settings.json and take precedence
+// over environment variables. The key/model are resolved at call time (not cached
+// at module load) so changes apply without restarting the engine.
+
+/** Models offered in the settings dropdown. */
+export const GEMINI_MODELS = [
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+];
+const DEFAULT_MODEL = 'gemini-2.0-flash';
+
+const SETTINGS_DIR = join(homedir(), '.cursorpilot');
+const SETTINGS_FILE = join(SETTINGS_DIR, 'settings.json');
+
+interface PersistedSettings {
+    apiKey?: string;
+    model?: string;
 }
 
-const genAI = new GoogleGenerativeAI(apiKey ?? '');
-const modelName = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
+function loadPersisted(): PersistedSettings {
+    try {
+        if (existsSync(SETTINGS_FILE)) {
+            return JSON.parse(readFileSync(SETTINGS_FILE, 'utf8')) as PersistedSettings;
+        }
+    } catch {
+        // ignore corrupt settings file — fall back to env/defaults
+    }
+    return {};
+}
+
+let persisted: PersistedSettings = loadPersisted();
+
+function savePersisted(): void {
+    try {
+        mkdirSync(SETTINGS_DIR, { recursive: true });
+        // Mode 0600: readable only by the owning user (the key is a secret).
+        writeFileSync(SETTINGS_FILE, JSON.stringify(persisted, null, 2), { mode: 0o600 });
+    } catch (err) {
+        console.warn('Failed to persist CursorPilot settings:', err);
+    }
+}
+
+type KeySource = 'user' | 'env' | 'none';
+
+function resolveApiKey(): { key: string; source: KeySource } {
+    if (persisted.apiKey) return { key: persisted.apiKey, source: 'user' };
+    if (process.env.GEMINI_API_KEY) return { key: process.env.GEMINI_API_KEY, source: 'env' };
+    return { key: '', source: 'none' };
+}
+
+function resolveModel(): string {
+    return persisted.model || process.env.GEMINI_MODEL || DEFAULT_MODEL;
+}
+
+function maskKey(key: string): string {
+    if (!key) return '';
+    if (key.length <= 8) return '••••';
+    return key.slice(0, 4) + '••••' + key.slice(-4);
+}
+
+export interface LlmSettings {
+    model: string;
+    availableModels: string[];
+    hasKey: boolean;
+    keySource: KeySource;
+    keyMask: string;
+}
+
+/** Current effective LLM settings. Never returns the raw key — only a mask. */
+export function getLlmSettings(): LlmSettings {
+    const { key, source } = resolveApiKey();
+    return {
+        model: resolveModel(),
+        availableModels: GEMINI_MODELS,
+        hasKey: !!key,
+        keySource: source,
+        keyMask: maskKey(key),
+    };
+}
+
+/**
+ * Update the user's Gemini key and/or model. Passing an empty string for apiKey
+ * clears the user key (falling back to GEMINI_API_KEY from the environment).
+ * Returns the new effective settings.
+ */
+export function setLlmSettings(input: { apiKey?: string; model?: string }): LlmSettings {
+    if (input.apiKey !== undefined) {
+        const trimmed = input.apiKey.trim();
+        if (trimmed === '') {
+            delete persisted.apiKey;
+        } else {
+            persisted.apiKey = trimmed;
+        }
+    }
+    if (input.model !== undefined && input.model.trim() !== '') {
+        persisted.model = input.model.trim();
+    }
+    savePersisted();
+    return getLlmSettings();
+}
+
+/** Build a Gemini model using the resolved key/model, throwing a clear error if no key is set. */
+function buildModel(
+    systemInstruction: string,
+    generationConfig: { temperature: number; maxOutputTokens: number },
+): GenerativeModel {
+    const { key } = resolveApiKey();
+    if (!key) {
+        throw new Error(
+            'No Gemini API key configured. Add your key in Settings (or set GEMINI_API_KEY in .env).',
+        );
+    }
+    const genAI = new GoogleGenerativeAI(key);
+    return genAI.getGenerativeModel({ model: resolveModel(), systemInstruction, generationConfig });
+}
 
 /**
  * Clean stray lines between diff file sections and fix hunk line counts.
@@ -230,13 +343,9 @@ export async function generateDiff(opts: {
     files: CollectedFile[];
     mode: string;
 }): Promise<string> {
-    const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: GEMINI_INSTRUCTION,
-        generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 8192,
-        },
+    const model = buildModel(GEMINI_INSTRUCTION, {
+        temperature: 0.1,
+        maxOutputTokens: 8192,
     });
 
     const userPrompt = buildUserPrompt({
@@ -261,14 +370,13 @@ export async function explainIssue(opts: {
     lintOutput?: string;
     files: CollectedFile[];
 }): Promise<string> {
-    const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: 'You are an expert software engineer. Explain concisely what is wrong and how to fix it.',
-        generationConfig: {
+    const model = buildModel(
+        'You are an expert software engineer. Explain concisely what is wrong and how to fix it.',
+        {
             temperature: 0.2,
             maxOutputTokens: 2048,
         },
-    });
+    );
 
     const userPrompt = buildUserPrompt({
         testOutput: opts.testOutput,

@@ -1,40 +1,41 @@
-// FixAndVerifyCommand — Maps to Button A on the Logitech device.
-// Triggers the full AI patch pipeline: test → collect → Gemini → validate → apply → retest.
+// FixAndVerifyCommand — a Command the user assigns to a button on the Logitech device.
+// Triggers the full AI patch pipeline: test -> collect -> Gemini -> validate -> apply -> retest.
 
-namespace CursorPilotPlugin.Actions;
-
-using CursorPilotPlugin.Bridge;
-
-/// <summary>
-/// Command action: "Fix & Verify"
-/// When the user presses the assigned button on the Logitech device,
-/// this command calls the CursorPilot Engine's /api/fix endpoint.
-/// The engine runs the full AI-powered fix pipeline and returns evidence.
-/// </summary>
-public class FixAndVerifyCommand
+namespace Loupedeck.CursorPilotPlugin
 {
-    private readonly LocalhostBridgeClient _bridge;
-
-    public FixAndVerifyCommand()
-    {
-        _bridge = new LocalhostBridgeClient();
-    }
+    using System;
 
     /// <summary>
-    /// Called by the Actions SDK when the mapped button is pressed.
+    /// Command action "Fix &amp; Verify". When the assigned button is pressed, it calls the
+    /// CursorPilot Engine's <c>POST /api/fix</c> endpoint over the localhost bridge.
     /// </summary>
-    public async Task ExecuteAsync()
+    public class FixAndVerifyCommand : PluginDynamicCommand
     {
-        Console.WriteLine("[CursorPilot] Fix & Verify command triggered");
+        private readonly LocalhostBridgeClient _bridge = new LocalhostBridgeClient();
 
-        try
+        public FixAndVerifyCommand()
+            : base(displayName: "Fix & Verify",
+                   description: "Run the AI patch pipeline: detect failures, generate a fix, validate, apply, and re-verify",
+                   groupName: "CursorPilot")
         {
-            var result = await _bridge.FixAsync();
-            Console.WriteLine("[CursorPilot] Fix result status: " + result);
         }
-        catch (Exception ex)
+
+        protected override void RunCommand(String actionParameter)
         {
-            Console.WriteLine("[CursorPilot] Fix command failed: " + ex.Message);
+            PluginLog.Info("Fix & Verify command triggered");
+
+            // RunCommand must return promptly; run the bridge call off the UI thread.
+            _ = _bridge.FixAsync().ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                {
+                    PluginLog.Error(t.Exception, "Fix command failed");
+                }
+                else
+                {
+                    PluginLog.Info("Fix result: " + t.Result);
+                }
+            });
         }
     }
 }

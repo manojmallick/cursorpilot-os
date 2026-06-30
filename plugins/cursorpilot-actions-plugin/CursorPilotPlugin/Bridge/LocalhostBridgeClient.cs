@@ -1,9 +1,8 @@
 // LocalhostBridgeClient — HTTP client for communicating with the CursorPilot Engine.
 // The engine runs a bridge server at localhost:8787.
 
-namespace CursorPilotPlugin.Bridge;
+namespace Loupedeck.CursorPilotPlugin;
 
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 

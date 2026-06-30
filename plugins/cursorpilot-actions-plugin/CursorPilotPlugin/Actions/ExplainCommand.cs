@@ -1,39 +1,40 @@
-// ExplainCommand — Maps to Button B on the Logitech device.
+// ExplainCommand — a Command the user assigns to a button on the Logitech device.
 // Asks the AI to explain what's wrong without applying a fix.
 
-namespace CursorPilotPlugin.Actions;
-
-using CursorPilotPlugin.Bridge;
-
-/// <summary>
-/// Command action: "Explain"
-/// When the user presses the assigned button on the Logitech device,
-/// this command calls the CursorPilot Engine's /api/explain endpoint.
-/// </summary>
-public class ExplainCommand
+namespace Loupedeck.CursorPilotPlugin
 {
-    private readonly LocalhostBridgeClient _bridge;
-
-    public ExplainCommand()
-    {
-        _bridge = new LocalhostBridgeClient();
-    }
+    using System;
 
     /// <summary>
-    /// Called by the Actions SDK when the mapped button is pressed.
+    /// Command action "Explain Issue". When the assigned button is pressed, it calls the
+    /// CursorPilot Engine's <c>POST /api/explain</c> endpoint over the localhost bridge.
     /// </summary>
-    public async Task ExecuteAsync()
+    public class ExplainCommand : PluginDynamicCommand
     {
-        Console.WriteLine("[CursorPilot] Explain command triggered");
+        private readonly LocalhostBridgeClient _bridge = new LocalhostBridgeClient();
 
-        try
+        public ExplainCommand()
+            : base(displayName: "Explain Issue",
+                   description: "Ask the AI to explain the current test/lint failures",
+                   groupName: "CursorPilot")
         {
-            var result = await _bridge.ExplainAsync();
-            Console.WriteLine("[CursorPilot] Explain result: " + result);
         }
-        catch (Exception ex)
+
+        protected override void RunCommand(String actionParameter)
         {
-            Console.WriteLine("[CursorPilot] Explain command failed: " + ex.Message);
+            PluginLog.Info("Explain command triggered");
+
+            _ = _bridge.ExplainAsync().ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                {
+                    PluginLog.Error(t.Exception, "Explain command failed");
+                }
+                else
+                {
+                    PluginLog.Info("Explain result: " + t.Result);
+                }
+            });
         }
     }
 }

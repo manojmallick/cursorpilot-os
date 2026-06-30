@@ -4,12 +4,20 @@ on:
   push:
     paths:
       - 'plugins/cursorpilot-actions-plugin/**'
+      - '.github/workflows/build-plugin.yml'
   pull_request:
     paths:
       - 'plugins/cursorpilot-actions-plugin/**'
+      - '.github/workflows/build-plugin.yml'
   workflow_dispatch:
 
 jobs:
+  # Runs on any Windows runner. Validates the package layout that the Logitech
+  # Marketplace requires, then builds + packs a real .lplug4 ONLY if the Logi
+  # Actions SDK (LogiPluginService) is present on the runner. PluginApi.dll and
+  # logiplugintool ship with LogiPluginService and are not redistributable, so a
+  # stock GitHub runner cannot produce the .lplug4 — use a self-hosted runner
+  # with Logi Options+ installed, or build locally (see the plugin README).
   build-plugin:
     runs-on: windows-latest
     defaults:
@@ -25,21 +33,48 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore dependencies
-        run: dotnet restore
+      - name: Validate package metadata
+        shell: pwsh
+        run: |
+          $meta = "CursorPilotPlugin/package/metadata"
+          $yaml = Join-Path $meta "LoupedeckPackage.yaml"
+          if (-not (Test-Path $yaml)) { throw "Missing $yaml" }
+          $icons = Get-ChildItem $meta -Filter *.png
+          if ($icons.Count -lt 1) { throw "No plugin icon (*.png) found in $meta" }
+          if (-not (Select-String -Path $yaml -Pattern '^type:\s*plugin4')) { throw "LoupedeckPackage.yaml must declare 'type: plugin4'" }
+          Write-Host "Package metadata OK: $yaml + $($icons.Count) icon(s)"
+
+      - name: Detect Logi Actions SDK
+        id: sdk
+        shell: pwsh
+        run: |
+          $apiDll = "C:\Program Files\Logi\LogiPluginService\PluginApi.dll"
+          $tool   = Get-Command logiplugintool -ErrorAction SilentlyContinue
+          $hasApi = Test-Path $apiDll
+          $hasTool = $null -ne $tool
+          "has_sdk=$([string]($hasApi -and $hasTool).ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          if (-not ($hasApi -and $hasTool)) {
+            Write-Host "::warning::Logi Actions SDK not found on this runner (PluginApi.dll present: $hasApi, logiplugintool present: $hasTool). Skipping build + .lplug4 packaging. Build on a machine with LogiPluginService installed — see the plugin README."
+          }
 
       - name: Build (Release)
-        run: dotnet build -c Release --no-restore
+        if: steps.sdk.outputs.has_sdk == 'true'
+        run: dotnet build CursorPilotPlugin.sln -c Release
 
-      - name: Publish
-        run: dotnet publish -c Release -o ./publish --no-build
+      - name: Pack .lplug4
+        if: steps.sdk.outputs.has_sdk == 'true'
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path "CursorPilotPlugin/package/metadata/LoupedeckPackage.yaml" -Pattern '^version:\s*(.+)$').Matches.Groups[1].Value.Trim()
+          $out = "CursorPilot_$($version -replace '\.','_').lplug4"
+          logiplugintool pack ./bin/Release/ ./$out
+          logiplugintool verify ./$out
+          Write-Host "Built $out"
 
-      - name: Create plugin archive
-        run: Compress-Archive -Path ./publish/* -DestinationPath cursorpilot-actions-plugin.zip
-
-      - name: Upload artifact
+      - name: Upload .lplug4 artifact
+        if: steps.sdk.outputs.has_sdk == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: cursorpilot-actions-plugin
-          path: plugins/cursorpilot-actions-plugin/cursorpilot-actions-plugin.zip
+          path: plugins/cursorpilot-actions-plugin/*.lplug4
           retention-days: 30

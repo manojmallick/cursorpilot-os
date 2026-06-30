@@ -3,10 +3,12 @@ import type { EvidenceState, ActionEvent } from '@cursorpilot/shared';
 import { INITIAL_EVIDENCE } from '@cursorpilot/shared';
 import { ConsolePage } from './pages/Console';
 import { EvidencePage } from './pages/Evidence';
+import { SettingsModal } from './components/SettingsModal';
 import './styles.css';
 
 export default function App() {
     const [evidence, setEvidence] = useState<EvidenceState>({ ...INITIAL_EVIDENCE });
+    const [settingsOpen, setSettingsOpen] = useState(false);
 
     const dispatchAction = useCallback(async (event: ActionEvent) => {
         // Optimistic: set running immediately for press events
@@ -69,11 +71,20 @@ export default function App() {
             <main className="app-main">
                 <header className="app-header">
                     <span className="app-title">CursorPilot OS</span>
+                    <button
+                        className="vc-btn vc-btn--ghost"
+                        onClick={() => setSettingsOpen(true)}
+                        title="Settings — Gemini API key and model"
+                    >
+                        ⚙ Settings
+                    </button>
                 </header>
                 <div className="app-content">
                     <EvidencePage evidence={evidence} />
                 </div>
             </main>
+
+            <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         </div>
     );
 }
