@@ -10,27 +10,31 @@ and needs no Windows machine of your own.**
 
 ---
 
-## Option 0 — Hosted GitHub runner, auto-install (default, no setup)
+## Option 0 — Hosted GitHub runner, auto-install (default, no setup) ✅ verified working
 
-The `package` job in `.github/workflows/build-plugin.yml` installs Logi Options+ on the
-hosted `windows-latest` runner using Logitech's documented silent installer
-(`logioptionsplus_installer.exe /quiet`). That places `PluginApi.dll` + `logiplugintool`
-on disk — all the build and pack need (no GUI or device required). So a release is fully
-hands-off:
+The `package` job in `.github/workflows/build-plugin.yml` produces a verified `.lplug4`
+entirely on the hosted `windows-latest` runner — no self-hosted runner, no local Windows.
+It does two things the build needs:
+
+1. Installs **Logi Options+** via Logitech's silent installer
+   (`logioptionsplus_installer.exe /quiet`) for `PluginApi.dll` (the build reference).
+2. Installs **logiplugintool** as a .NET tool (`dotnet tool update --global LogiPluginTool`,
+   Logitech's official NuGet package) for packing/verifying.
+
+So a release is fully hands-off:
 
 ```bash
 git tag plugin-v1.0.1 && git push origin plugin-v1.0.1
 ```
 
-→ CI installs the SDK, builds, packs, `verify`s, and attaches `CursorPilot_1_0.lplug4` to
-the `plugin-v1.0.1` release.
+→ CI installs the SDK + tool, builds, packs, `verify`s, and attaches `CursorPilot_1_0.lplug4`
+to the `plugin-v1.0.1` release (with auto-generated notes). Confirmed: a ~9.5 MB verified
+package on the v1.0.1 release.
 
 Notes:
-- The install adds ~2–4 min per release build. Set repo variable `INSTALL_LOGI_SDK=false`
-  to disable it (e.g. when using a self-hosted runner that already has the SDK).
-- Installing Logitech's installer in CI is unofficial-for-CI but only uses files you're
-  licensed to use to build your own plugin. If a runner image change ever breaks it, fall
-  back to Option A/B/C below.
+- The Options+ install adds ~3–4 min per release build. Set repo variable
+  `INSTALL_LOGI_SDK=false` to skip it (e.g. on a self-hosted runner that already has it).
+- If a future runner-image change ever breaks the Options+ install, fall back to A/B/C below.
 
 ---
 

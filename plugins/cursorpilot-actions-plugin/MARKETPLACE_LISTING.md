@@ -146,7 +146,7 @@ dark theme, no real keys on screen. Target ~20s, loopable.
 
 ## Pre-submission gate (don't upload until all true)
 
-- [ ] `.lplug4` built on a machine with LogiPluginService and **`logiplugintool verify` passes**.
+- [x] `.lplug4` built + **`logiplugintool verify` passes** (automated in CI on every `plugin-v*` tag; binary attached to the release).
 - [ ] Tested on at least one supported device (or documented as Virtual-Console-tested).
 - [x] Branded plugin icon in place (swap for custom art only if desired).
 - [ ] Marketplace Developer Agreement accepted; EULA attached.
