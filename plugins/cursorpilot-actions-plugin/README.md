@@ -71,6 +71,9 @@ logiplugintool verify ./CursorPilot_1_0.lplug4
 
 Naming convention: `pluginName_version.lplug4`.
 
+> Don't have a Windows machine with the SDK? See [`BUILDING.md`](./BUILDING.md) for three ways
+> to produce the `.lplug4` (local Windows, self-hosted CI runner, or an ephemeral cloud VM).
+
 ## Loading the Plugin Locally
 
 1. Build on Windows (`dotnet build -c Release`) — the post-build step links the output into LogiPluginService for hot reload.

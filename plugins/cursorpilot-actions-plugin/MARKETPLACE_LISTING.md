@@ -107,6 +107,43 @@ captures with no personal data on screen.
 
 ---
 
+## Demo recording script (15–30s GIF)
+
+The single most persuasive asset. Record at 1920×1080 (or 2x Retina, then downscale),
+dark theme, no real keys on screen. Target ~20s, loopable.
+
+**Setup before recording**
+- [ ] Engine running (`npm run dev`), bridge up on `:8787`.
+- [ ] A Gemini key already saved in ⚙ Settings (so no key entry appears on camera).
+- [ ] `demo-repo` reset to its broken state (`lokaflow`/CursorPilot reset, or the Reset button) so a test is genuinely failing.
+- [ ] Window sized clean; hide other apps; cursor movements slow and deliberate.
+
+**Beat sheet**
+
+| Time | On screen | Action |
+|------|-----------|--------|
+| 0:00–0:03 | App + (if filming hardware) the MX Creative Console / dial in frame | Hold on the failing test panel — red FAIL badge visible. |
+| 0:03–0:05 | Dial / Mode Selector | Rotate the dial: mode cycles SAFE → SECURITY (mode label updates on dial + ModeBadge). |
+| 0:05–0:07 | Button A / Fix & Verify | Press the button. Status flips to RUNNING. |
+| 0:07–0:14 | Evidence panel | Pipeline runs: diff appears, patch applies, tests re-run. Keep it real-time or lightly sped up. |
+| 0:14–0:18 | Evidence panel | Green PASS badge + the diff/evidence. The payoff frame — hold it. |
+| 0:18–0:20 | Full window | Settle on the passing state for the loop point. |
+
+**Caption overlays (optional, keep short)**
+- 0:03 "Rotate to choose how it fixes"
+- 0:05 "One press → fix + verify"
+- 0:14 "Tests pass, or it doesn't ship"
+
+**Export**
+- [ ] GIF under ~8 MB if the portal caps size; otherwise MP4.
+- [ ] Trim dead air at both ends; verify it loops cleanly.
+- [ ] Re-watch frame-by-frame for any visible secret/PII.
+
+> No hardware? Film the **Virtual Console** in the desktop app — the dial and buttons there
+> drive the exact same engine endpoints, so the demo is faithful.
+
+---
+
 ## Pre-submission gate (don't upload until all true)
 
 - [ ] `.lplug4` built on a machine with LogiPluginService and **`logiplugintool verify` passes**.
