@@ -103,3 +103,6 @@ jobs:
         with:
           files: plugins/cursorpilot-actions-plugin/*.lplug4
           fail_on_unmatched_files: true
+          # If the tag has no release yet, create one with auto-generated notes.
+          # Existing releases (e.g. plugin-v1.0.0) keep their notes; only the file is added.
+          generate_release_notes: true
