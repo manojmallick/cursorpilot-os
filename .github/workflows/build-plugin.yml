@@ -86,42 +86,25 @@ jobs:
           while (-not (Test-Path $apiDll) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 10 }
           Write-Host "PluginApi.dll present: $(Test-Path $apiDll)"
 
-      - name: Resolve Logi plugin tool
+      # logiplugintool is Logitech's official .NET tool on NuGet (it packs/verifies
+      # .lplug4). `dotnet tool update` installs it or upgrades if already present.
+      - name: Install LogiPluginTool (.NET tool)
+        shell: pwsh
+        run: |
+          dotnet tool update --global LogiPluginTool
+          Add-Content -Path $env:GITHUB_PATH -Value "$env:USERPROFILE\.dotnet\tools"
+
+      - name: Detect Logi Actions SDK
         id: sdk
         shell: pwsh
         run: |
-          $apiDll = "C:\Program Files\Logi\LogiPluginService\PluginApi.dll"
-          $hasApi = Test-Path $apiDll
-
-          $roots = @(
-            "C:\Program Files\Logi", "C:\Program Files (x86)\Logi",
-            "$env:ProgramData\Logi", "$env:LOCALAPPDATA\Logi", "$env:LOCALAPPDATA\Programs"
-          ) | Where-Object { Test-Path $_ }
-
-          # Diagnostics: show every plugin-tool-ish file the installer placed.
-          Write-Host "── plugintool candidates ──"
-          Get-ChildItem $roots -Recurse -ErrorAction SilentlyContinue -Include "*lugin*ool*.exe","*lugin*ool*.dll" |
-            ForEach-Object { Write-Host "  $($_.FullName)" }
-
-          # Prefer the managed DLL (run via `dotnet <dll>`). Fall back to an .exe apphost
-          # only if its sibling .dll exists (otherwise it's a broken launcher).
-          $kind = ""; $path = ""
-          $dll = Get-ChildItem $roots -Recurse -ErrorAction SilentlyContinue -Include "LogiPluginTool.dll","logiplugintool.dll" | Select-Object -First 1
-          if ($dll) {
-            $kind = "dll"; $path = $dll.FullName
-          } else {
-            $exe = Get-ChildItem $roots -Recurse -ErrorAction SilentlyContinue -Include "logiplugintool.exe","LogiPluginTool.exe" |
-              Where-Object { Test-Path (Join-Path $_.DirectoryName ($_.BaseName + ".dll")) } | Select-Object -First 1
-            if ($exe) { $kind = "exe"; $path = $exe.FullName }
-          }
-
-          $hasTool = $kind -ne ""
-          "LOGI_TOOL_KIND=$kind" >> $env:GITHUB_ENV
-          "LOGI_TOOL_PATH=$path" >> $env:GITHUB_ENV
+          $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
+          $hasApi = Test-Path "C:\Program Files\Logi\LogiPluginService\PluginApi.dll"
+          $hasTool = $null -ne (Get-Command logiplugintool -ErrorAction SilentlyContinue)
           "has_sdk=$([string]($hasApi -and $hasTool).ToString().ToLower())" >> $env:GITHUB_OUTPUT
-          Write-Host "Resolved tool: kind=$kind path=$path (PluginApi.dll: $hasApi)"
+          Write-Host "PluginApi.dll: $hasApi, logiplugintool: $hasTool"
           if (-not ($hasApi -and $hasTool)) {
-            Write-Host "::warning::Logi Actions SDK not fully available (PluginApi.dll: $hasApi, tool: $hasTool). See the candidates above and BUILDING.md."
+            Write-Host "::warning::Logi Actions SDK not fully available (PluginApi.dll: $hasApi, logiplugintool: $hasTool). See BUILDING.md."
           }
 
       # A release tag must produce a binary. If the SDK is missing on a tag build,
@@ -141,18 +124,13 @@ jobs:
         if: steps.sdk.outputs.has_sdk == 'true'
         shell: pwsh
         run: |
+          $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
           $version = (Select-String -Path "CursorPilotPlugin/package/metadata/LoupedeckPackage.yaml" -Pattern '^version:\s*(.+)$').Matches.Groups[1].Value.Trim()
           $out = "CursorPilot_$($version -replace '\.','_').lplug4"
-
-          function Invoke-Tool {
-            param([string[]]$ToolArgs)
-            if ($env:LOGI_TOOL_KIND -eq 'dll') { & dotnet $env:LOGI_TOOL_PATH @ToolArgs }
-            else { & $env:LOGI_TOOL_PATH @ToolArgs }
-            if ($LASTEXITCODE -ne 0) { throw "tool exited with code $LASTEXITCODE" }
-          }
-
-          Invoke-Tool @("pack", "./bin/Release/", "./$out")
-          Invoke-Tool @("verify", "./$out")
+          logiplugintool pack ./bin/Release/ ./$out
+          if ($LASTEXITCODE -ne 0) { throw "pack failed ($LASTEXITCODE)" }
+          logiplugintool verify ./$out
+          if ($LASTEXITCODE -ne 0) { throw "verify failed ($LASTEXITCODE)" }
           if (-not (Test-Path "./$out")) { throw "Expected $out was not produced" }
           Write-Host "Built $out"
 
