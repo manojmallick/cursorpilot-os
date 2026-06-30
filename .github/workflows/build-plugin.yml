@@ -74,6 +74,15 @@ jobs:
             Write-Host "::warning::Logi Actions SDK not found on this runner (PluginApi.dll present: $hasApi, logiplugintool present: $hasTool). Skipping build + .lplug4 packaging. Set the PLUGIN_RUNNER repo variable to a self-hosted runner with Logi Options+ installed — see plugins/cursorpilot-actions-plugin/BUILDING.md."
           }
 
+      # A release tag must produce a binary. If the SDK is missing on a tag build,
+      # fail loudly instead of publishing a release with no .lplug4 attached.
+      - name: Require SDK for release tags
+        if: startsWith(github.ref, 'refs/tags/plugin-v') && steps.sdk.outputs.has_sdk != 'true'
+        shell: pwsh
+        run: |
+          Write-Host "::error::Release tag $env:GITHUB_REF_NAME was pushed, but no Logi Actions SDK is available on this runner, so no .lplug4 can be built. Set the PLUGIN_RUNNER repo variable to a self-hosted Windows runner with Logi Options+ installed, then re-push the tag. See plugins/cursorpilot-actions-plugin/BUILDING.md."
+          exit 1
+
       - name: Build (Release)
         if: steps.sdk.outputs.has_sdk == 'true'
         run: dotnet build CursorPilotPlugin.sln -c Release
