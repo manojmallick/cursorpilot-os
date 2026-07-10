@@ -30,8 +30,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!--
+      PluginApi.dll is provided by the LogiPluginService host runtime at load
+      time. Private=false compiles against it but keeps it OUT of the build
+      output / .lplug4 package, avoiding a runtime/bundled version conflict.
+    -->
     <Reference Include="PluginApi">
       <HintPath>$(PluginApiDir)PluginApi.dll</HintPath>
+      <Private>false</Private>
     </Reference>
   </ItemGroup>
 
