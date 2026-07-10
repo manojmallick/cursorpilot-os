@@ -18,7 +18,7 @@ description: AI-powered, test-gated code fix workflow controlled from your Logit
 pluginFileName: CursorPilotPlugin.dll
 
 # Plugin version.
-version: 1.0
+version: 1.0.2
 
 # Author of the plugin. The author can be a company or an individual developer.
 author: Manoj Mallick
